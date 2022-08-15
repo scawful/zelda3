@@ -241,7 +241,9 @@ int main(int argc, char** argv) {
 
     ZeldaDrawPpuFrame();
 
-    playAudio(snes_run, device, audioBuffer);
+    if (!paused)
+      playAudio(snes_run, device, audioBuffer);
+      
     renderScreen(renderer, texture);
 
     // draw imgui overlay
