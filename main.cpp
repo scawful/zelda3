@@ -232,15 +232,12 @@ int main(int argc, char** argv) {
       HandleMouseMovement(wheel);
     }
 
-    if (paused) {
-      SDL_Delay(16);
-      continue;
+    if (!paused) {
+      bool is_turbo = RunOneFrame(snes_run, input1_current_state, (counter++ & 0x7f) != 0 && turbo);
+
+      if (is_turbo)
+        continue;
     }
-
-    bool is_turbo = RunOneFrame(snes_run, input1_current_state, (counter++ & 0x7f) != 0 && turbo);
-
-    if (is_turbo)
-      continue;
 
     ZeldaDrawPpuFrame();
 
