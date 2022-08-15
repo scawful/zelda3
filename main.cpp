@@ -24,6 +24,9 @@
 extern uint8 g_emulated_ram[0x20000];
 bool g_run_without_emu = false;
 
+bool fast_forward = false;
+int fast_forward_counter = 0;
+
 void PatchRom(uint8_t *rom);
 void SetSnes(Snes *snes);
 void RunAudioPlayer();
@@ -113,7 +116,7 @@ int main(int argc, char** argv) {
     printf("Failed to init SDL: %s\n", SDL_GetError());
     return 1;
   }
-  SDL_Window* window = SDL_CreateWindow("Zelda3", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 500, SDL_WINDOW_RESIZABLE);
+  SDL_Window* window = SDL_CreateWindow("Zelda3", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 468, SDL_WINDOW_RESIZABLE);
   if(window == NULL) {
     printf("Failed to create window: %s\n", SDL_GetError());
     return 1;
@@ -245,6 +248,12 @@ int main(int argc, char** argv) {
       playAudio(snes_run, device, audioBuffer);
 
     renderScreen(renderer, texture);
+
+    if (fast_forward) {
+      if ((fast_forward_counter++ & 3) != 0) {
+        continue;
+      }
+    }
 
     // draw imgui overlay
     const ImGuiIO &io = ImGui::GetIO();
@@ -388,12 +397,12 @@ static void renderScreen(SDL_Renderer* renderer, SDL_Texture* texture) {
 
   ppu_putPixels(GetPpuForRendering(), (uint8_t*) pixels);
   SDL_UnlockTexture(texture);
-  SDL_Rect textue_offset_rect;
-  textue_offset_rect.x = 0;
-  textue_offset_rect.y = 20;
-  textue_offset_rect.w = 512;
-  textue_offset_rect.h = 480;
-  SDL_RenderCopy(renderer, texture, NULL, &textue_offset_rect);
+  SDL_Rect texture_offset_rect;
+  texture_offset_rect.x = 0;
+  texture_offset_rect.y = 4;
+  texture_offset_rect.w = 512;
+  texture_offset_rect.h = 480;
+  SDL_RenderCopy(renderer, texture, NULL, &texture_offset_rect);
 }
 
 
@@ -435,6 +444,10 @@ static void handleInput(int keyCode, int keyMod, bool pressed) {
       }
       break;
 
+    case SDLK_TAB:
+      fast_forward = pressed;
+      printf("Fast Forward: %d\n", fast_forward);
+      break;
     case SDLK_F1: 
     case SDLK_F2: 
     case SDLK_F3: 
