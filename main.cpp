@@ -7,6 +7,12 @@
 
 #include <SDL.h>
 
+#include <imgui/backends/imgui_impl_sdl.h>
+#include <imgui/backends/imgui_impl_sdlrenderer.h>
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
+#include <string>
+
 #include "snes/snes.h"
 #include "tracing.h"
 
@@ -44,6 +50,61 @@ void setButtonState(int button, bool pressed) {
   }
 }
 
+void InitializeKeymap() {
+  ImGuiIO &io = ImGui::GetIO();
+  io.KeyMap[ImGuiKey_Backspace] = SDL_GetScancodeFromKey(SDLK_BACKSPACE);
+  io.KeyMap[ImGuiKey_Enter] = SDL_GetScancodeFromKey(SDLK_RETURN);
+  io.KeyMap[ImGuiKey_UpArrow] = SDL_GetScancodeFromKey(SDLK_UP);
+  io.KeyMap[ImGuiKey_DownArrow] = SDL_GetScancodeFromKey(SDLK_DOWN);
+  io.KeyMap[ImGuiKey_Tab] = SDL_GetScancodeFromKey(SDLK_TAB);
+  io.KeyMap[ImGuiKey_LeftCtrl] = SDL_GetScancodeFromKey(SDLK_LCTRL);
+}
+
+void HandleKeyDown(SDL_Event &event) {
+  ImGuiIO &io = ImGui::GetIO();
+  switch (event.key.keysym.sym) {
+    case SDLK_UP:
+    case SDLK_DOWN:
+    case SDLK_RETURN:
+    case SDLK_BACKSPACE:
+    case SDLK_TAB:
+      io.KeysDown[event.key.keysym.scancode] = (event.type == SDL_KEYDOWN);
+      break;
+    default:
+      break;
+  }
+}
+
+void HandleKeyUp(SDL_Event &event) {
+  ImGuiIO &io = ImGui::GetIO();
+  int key = event.key.keysym.scancode;
+  IM_ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
+  io.KeysDown[key] = (event.type == SDL_KEYDOWN);
+  io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
+  io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
+  io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
+  io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
+}
+
+void ChangeWindowSizeEvent(SDL_Event &event) {
+  ImGuiIO &io = ImGui::GetIO();
+  io.DisplaySize.x = static_cast<float>(event.window.data1);
+  io.DisplaySize.y = static_cast<float>(event.window.data2);
+}
+
+void HandleMouseMovement(int &wheel) {
+  ImGuiIO &io = ImGui::GetIO();
+  int mouseX;
+  int mouseY;
+  const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
+
+  io.DeltaTime = 1.0f / 60.0f;
+  io.MousePos = ImVec2(static_cast<float>(mouseX), static_cast<float>(mouseY));
+  io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+  io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
+  io.MouseWheel = static_cast<float>(wheel);
+}
+
 
 #undef main
 int main(int argc, char** argv) {
@@ -52,7 +113,7 @@ int main(int argc, char** argv) {
     printf("Failed to init SDL: %s\n", SDL_GetError());
     return 1;
   }
-  SDL_Window* window = SDL_CreateWindow("Zelda3", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 480, 0);
+  SDL_Window* window = SDL_CreateWindow("Zelda3", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 480, SDL_WINDOW_RESIZABLE);
   if(window == NULL) {
     printf("Failed to create window: %s\n", SDL_GetError());
     return 1;
@@ -62,6 +123,12 @@ int main(int argc, char** argv) {
     printf("Failed to create renderer: %s\n", SDL_GetError());
     return 1;
   }
+  // create imgui context 
+  ImGui::CreateContext();
+  ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+  ImGui_ImplSDLRenderer_Init(renderer);
+  ImGui_ImplSDLRenderer_NewFrame();
+  ImGui_ImplSDL2_NewFrame(window);
   SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBX8888, SDL_TEXTUREACCESS_STREAMING, 512, 480);
   if(texture == NULL) {
     printf("Failed to create texture: %s\n", SDL_GetError());
@@ -111,7 +178,7 @@ int main(int argc, char** argv) {
   bool paused = false;
   bool turbo = true;
   uint32_t frameCtr = 0;
-
+  int wheel = 0;
   printf("%d\n", *(int *)snes->cart->ram);
 
   while(running) {
@@ -140,10 +207,21 @@ int main(int argc, char** argv) {
               break;
           }
           handleInput(event.key.keysym.sym, event.key.keysym.mod, true);
+          HandleKeyDown(event);
           break;
         }
+        case SDL_WINDOWEVENT:
+        switch (event.window.event) {
+          case SDL_WINDOWEVENT_SIZE_CHANGED:
+            ChangeWindowSizeEvent(event);
+            break;
+          default:
+            break;
+        }
+        break;
         case SDL_KEYUP: {
           handleInput(event.key.keysym.sym, event.key.keysym.mod, false);
+          HandleKeyUp(event);
           break;
         }
         case SDL_QUIT: {
@@ -151,6 +229,7 @@ int main(int argc, char** argv) {
           break;
         }
       }
+      HandleMouseMovement(wheel);
     }
 
     if (paused) {
@@ -167,6 +246,81 @@ int main(int argc, char** argv) {
 
     playAudio(snes_run, device, audioBuffer);
     renderScreen(renderer, texture);
+
+    // draw imgui overlay
+    const ImGuiIO &io = ImGui::GetIO();
+    ImGui::NewFrame();
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImVec2 dimensions(io.DisplaySize.x, 20);
+    ImGui::SetNextWindowSize(dimensions, ImGuiCond_Always);
+
+    if (!ImGui::Begin("##zelda3_overlay", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse |
+    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar |
+    ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoTitleBar)) {
+      ImGui::End();
+    }
+        
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+          if (ImGui::MenuItem("Import ROM")) {
+
+          }
+          ImGui::Separator();
+          if (ImGui::MenuItem("Pause")) {
+            paused ^= true;
+          }
+          if (ImGui::MenuItem("Reset")) {
+            if (snes) {
+              snes_reset(snes, event.key.keysym.sym == SDLK_e);
+              CopyStateAfterSnapshotRestore(true);
+            }
+          }
+          
+          ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Snapshot"))
+        {
+            if (ImGui::BeginMenu("Save Snapshot"))
+            {
+              ImGui::MenuItem("#1", "F1");
+              ImGui::MenuItem("#2", "F2");
+              ImGui::MenuItem("#3", "F3");
+              ImGui::MenuItem("#4", "F4");
+              ImGui::MenuItem("#5", "F5");
+              ImGui::MenuItem("#6", "F6");
+              ImGui::MenuItem("#7", "F7");
+              ImGui::MenuItem("#8", "F8");
+              ImGui::MenuItem("#9", "F9");
+              ImGui::MenuItem("#10", "F10");
+              ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Load Snapshot")) {
+              ImGui::MenuItem("#1", "Shift + F1");
+              ImGui::MenuItem("#2", "Shift + F2");
+              ImGui::MenuItem("#3", "Shift + F3");
+              ImGui::MenuItem("#4", "Shift + F4");
+              ImGui::MenuItem("#5", "Shift + F5");
+              ImGui::MenuItem("#6", "Shift + F6");
+              ImGui::MenuItem("#7", "Shift + F7");
+              ImGui::MenuItem("#8", "Shift + F8");
+              ImGui::MenuItem("#9", "Shift + F9");
+              ImGui::MenuItem("#10", "Shift + F10");
+              ImGui::EndMenu();
+            }
+
+            ImGui::MenuItem("Replay");
+            ImGui::Separator();
+            ImGui::MenuItem("Clear History");
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+    ImGui::End();
+
+    // render the imgui 
+    ImGui::Render();
+    ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
 
     SDL_RenderPresent(renderer); // vsyncs to 60 FPS
     // if vsync isn't working, delay manually
@@ -190,6 +344,10 @@ int main(int argc, char** argv) {
   }
   // clean snes
   snes_free(snes);
+  // clean imgui 
+  ImGui_ImplSDLRenderer_Shutdown();
+  ImGui_ImplSDL2_Shutdown();
+  ImGui::DestroyContext();
   // clean sdl
   SDL_PauseAudioDevice(device, 1);
   SDL_CloseAudioDevice(device);
