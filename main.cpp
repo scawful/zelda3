@@ -108,6 +108,30 @@ void HandleMouseMovement(int &wheel) {
   io.MouseWheel = static_cast<float>(wheel);
 }
 
+void ShowControlsWindow(bool *p_open) {
+  if (!ImGui::Begin("Controls", p_open, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::End();
+      return;
+  }
+  ImGui::Text("Press the button then input the desired mapping.");
+  ImGui::Button("A"); ImGui::SameLine();
+  ImGui::Button("B"); ImGui::SameLine();
+  ImGui::Button("X"); ImGui::SameLine();
+  ImGui::Button("Y"); ImGui::SameLine();
+
+  ImGui::Button("L"); ImGui::SameLine();
+  ImGui::Button("R"); 
+
+  ImGui::Button("Up"); ImGui::SameLine();
+  ImGui::Button("Down"); ImGui::SameLine();
+  ImGui::Button("Left"); ImGui::SameLine();
+  ImGui::Button("Right"); 
+
+  ImGui::Button("Start"); ImGui::SameLine();
+  ImGui::Button("Select"); ImGui::SameLine();
+  ImGui::End();
+}
+
 
 #undef main
 int main(int argc, char** argv) {
@@ -182,6 +206,7 @@ int main(int argc, char** argv) {
   bool turbo = true;
   uint32_t frameCtr = 0;
   int wheel = 0;
+  static bool show_control_window = false;
   printf("%d\n", *(int *)snes->cart->ram);
 
   while(running) {
@@ -270,26 +295,37 @@ int main(int argc, char** argv) {
         
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-          if (ImGui::MenuItem("Import ROM")) {
-
+          if (ImGui::MenuItem("Load ROM")) {
+            // TODO(@scawful): Include ImGuiFileDialog to load ROM from file.
           }
           ImGui::Separator();
-          if (ImGui::MenuItem("Pause")) {
+          if (ImGui::MenuItem("Pause", "P")) {
+            // TODO(@scawful): Add some sort of visual indicator for software pause.
             paused ^= true;
           }
-          if (ImGui::MenuItem("Reset")) {
+          if (ImGui::MenuItem("Reset", "E")) {
             if (snes) {
               snes_reset(snes, event.key.keysym.sym == SDLK_e);
               CopyStateAfterSnapshotRestore(true);
             }
           }
+          ImGui::Separator();
+          if (ImGui::BeginMenu("Cheats")) {
+            if (ImGui::MenuItem("Fill health/magic", "W")) {
+              PatchCommand('w');
+            }
+            ImGui::EndMenu();
+          }
+          ImGui::Separator();
+          if (ImGui::MenuItem("Quit", "Q")) {
+            running = false;
+          }
           
           ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Snapshot"))
-        {
-            if (ImGui::BeginMenu("Save Snapshot"))
-            {
+
+        if (ImGui::BeginMenu("Snapshot")) {
+            if (ImGui::BeginMenu("Save")) {
               ImGui::MenuItem("#1", "F1");
               ImGui::MenuItem("#2", "F2");
               ImGui::MenuItem("#3", "F3");
@@ -303,7 +339,7 @@ int main(int argc, char** argv) {
               ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Load Snapshot")) {
+            if (ImGui::BeginMenu("Load")) {
               ImGui::MenuItem("#1", "Shift + F1");
               ImGui::MenuItem("#2", "Shift + F2");
               ImGui::MenuItem("#3", "Shift + F3");
@@ -322,8 +358,20 @@ int main(int argc, char** argv) {
             ImGui::MenuItem("Clear History");
             ImGui::EndMenu();
         }
+
+        
+        if (ImGui::BeginMenu("Settings")) {
+          ImGui::MenuItem("Controls", NULL, &show_control_window);
+          if (ImGui::MenuItem("Audio")) {
+            
+          }
+          ImGui::EndMenu();
+        }
+
         ImGui::EndMenuBar();
     }
+    if (show_control_window) 
+      ShowControlsWindow(&show_control_window);
     ImGui::End();
 
     // render the imgui 
