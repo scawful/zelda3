@@ -42,6 +42,11 @@ static void playAudio(Snes *snes, SDL_AudioDeviceID device, int16_t* audioBuffer
 static void renderScreen(SDL_Renderer* renderer, SDL_Texture* texture);
 static void handleInput(int keyCode, int modCode, bool pressed);
 
+static void handleGuiKeyDown(SDL_Event &event);
+static void handleGuiKeyUp(SDL_Event &event) ;
+static void handleGuiMouseMovement(int &wheel);
+static void changeWindowSizeEvent(SDL_Event &event);
+
 int input1_current_state;
 
 void setButtonState(int button, bool pressed) {
@@ -51,61 +56,6 @@ void setButtonState(int button, bool pressed) {
   } else {
     input1_current_state &= ~(1 << button);
   }
-}
-
-void InitializeKeymap() {
-  ImGuiIO &io = ImGui::GetIO();
-  io.KeyMap[ImGuiKey_Backspace] = SDL_GetScancodeFromKey(SDLK_BACKSPACE);
-  io.KeyMap[ImGuiKey_Enter] = SDL_GetScancodeFromKey(SDLK_RETURN);
-  io.KeyMap[ImGuiKey_UpArrow] = SDL_GetScancodeFromKey(SDLK_UP);
-  io.KeyMap[ImGuiKey_DownArrow] = SDL_GetScancodeFromKey(SDLK_DOWN);
-  io.KeyMap[ImGuiKey_Tab] = SDL_GetScancodeFromKey(SDLK_TAB);
-  io.KeyMap[ImGuiKey_LeftCtrl] = SDL_GetScancodeFromKey(SDLK_LCTRL);
-}
-
-void HandleKeyDown(SDL_Event &event) {
-  ImGuiIO &io = ImGui::GetIO();
-  switch (event.key.keysym.sym) {
-    case SDLK_UP:
-    case SDLK_DOWN:
-    case SDLK_RETURN:
-    case SDLK_BACKSPACE:
-    case SDLK_TAB:
-      io.KeysDown[event.key.keysym.scancode] = (event.type == SDL_KEYDOWN);
-      break;
-    default:
-      break;
-  }
-}
-
-void HandleKeyUp(SDL_Event &event) {
-  ImGuiIO &io = ImGui::GetIO();
-  int key = event.key.keysym.scancode;
-  IM_ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
-  io.KeysDown[key] = (event.type == SDL_KEYDOWN);
-  io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
-  io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
-  io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
-  io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
-}
-
-void ChangeWindowSizeEvent(SDL_Event &event) {
-  ImGuiIO &io = ImGui::GetIO();
-  io.DisplaySize.x = static_cast<float>(event.window.data1);
-  io.DisplaySize.y = static_cast<float>(event.window.data2);
-}
-
-void HandleMouseMovement(int &wheel) {
-  ImGuiIO &io = ImGui::GetIO();
-  int mouseX;
-  int mouseY;
-  const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
-
-  io.DeltaTime = 1.0f / 60.0f;
-  io.MousePos = ImVec2(static_cast<float>(mouseX), static_cast<float>(mouseY));
-  io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
-  io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
-  io.MouseWheel = static_cast<float>(wheel);
 }
 
 void ShowControlsWindow(bool *p_open) {
@@ -141,8 +91,6 @@ void ShowAudioWindow(bool *p_open) {
   ImGui::SliderInt("Master Volume", &volume, 0, 100);
   ImGui::End();
 }
-
-
 
 #undef main
 int main(int argc, char** argv) {
@@ -247,13 +195,13 @@ int main(int argc, char** argv) {
               break;
           }
           handleInput(event.key.keysym.sym, event.key.keysym.mod, true);
-          HandleKeyDown(event);
+          handleGuiKeyDown(event);
           break;
         }
         case SDL_WINDOWEVENT:
         switch (event.window.event) {
           case SDL_WINDOWEVENT_SIZE_CHANGED:
-            ChangeWindowSizeEvent(event);
+            changeWindowSizeEvent(event);
             break;
           default:
             break;
@@ -261,7 +209,7 @@ int main(int argc, char** argv) {
         break;
         case SDL_KEYUP: {
           handleInput(event.key.keysym.sym, event.key.keysym.mod, false);
-          HandleKeyUp(event);
+          handleGuiKeyUp(event);
           break;
         }
         case SDL_QUIT: {
@@ -269,7 +217,7 @@ int main(int argc, char** argv) {
           break;
         }
       }
-      HandleMouseMovement(wheel);
+      handleGuiMouseMovement(wheel);
     }
 
     if (!paused) {
@@ -574,4 +522,59 @@ static uint8_t* readFile(char* name, size_t* length) {
   fclose(f);
   *length = size;
   return buffer;
+}
+
+void InitializeKeymap() {
+  ImGuiIO &io = ImGui::GetIO();
+  io.KeyMap[ImGuiKey_Backspace] = SDL_GetScancodeFromKey(SDLK_BACKSPACE);
+  io.KeyMap[ImGuiKey_Enter] = SDL_GetScancodeFromKey(SDLK_RETURN);
+  io.KeyMap[ImGuiKey_UpArrow] = SDL_GetScancodeFromKey(SDLK_UP);
+  io.KeyMap[ImGuiKey_DownArrow] = SDL_GetScancodeFromKey(SDLK_DOWN);
+  io.KeyMap[ImGuiKey_Tab] = SDL_GetScancodeFromKey(SDLK_TAB);
+  io.KeyMap[ImGuiKey_LeftCtrl] = SDL_GetScancodeFromKey(SDLK_LCTRL);
+}
+
+void handleGuiKeyDown(SDL_Event &event) {
+  ImGuiIO &io = ImGui::GetIO();
+  switch (event.key.keysym.sym) {
+    case SDLK_UP:
+    case SDLK_DOWN:
+    case SDLK_RETURN:
+    case SDLK_BACKSPACE:
+    case SDLK_TAB:
+      io.KeysDown[event.key.keysym.scancode] = (event.type == SDL_KEYDOWN);
+      break;
+    default:
+      break;
+  }
+}
+
+void handleGuiKeyUp(SDL_Event &event) {
+  ImGuiIO &io = ImGui::GetIO();
+  int key = event.key.keysym.scancode;
+  IM_ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
+  io.KeysDown[key] = (event.type == SDL_KEYDOWN);
+  io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
+  io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
+  io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
+  io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
+}
+
+void handleGuiMouseMovement(int &wheel) {
+  ImGuiIO &io = ImGui::GetIO();
+  int mouseX;
+  int mouseY;
+  const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
+
+  io.DeltaTime = 1.0f / 60.0f;
+  io.MousePos = ImVec2(static_cast<float>(mouseX), static_cast<float>(mouseY));
+  io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+  io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
+  io.MouseWheel = static_cast<float>(wheel);
+}
+
+void changeWindowSizeEvent(SDL_Event &event) {
+  ImGuiIO &io = ImGui::GetIO();
+  io.DisplaySize.x = static_cast<float>(event.window.data1);
+  io.DisplaySize.y = static_cast<float>(event.window.data2);
 }
