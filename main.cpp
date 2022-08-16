@@ -132,6 +132,17 @@ void ShowControlsWindow(bool *p_open) {
   ImGui::End();
 }
 
+void ShowAudioWindow(bool *p_open) {
+  if (!ImGui::Begin("Audio", p_open, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::End();
+      return;
+  }
+  static int volume = 100.f;
+  ImGui::SliderInt("Master Volume", &volume, 0, 100);
+  ImGui::End();
+}
+
+
 
 #undef main
 int main(int argc, char** argv) {
@@ -207,6 +218,7 @@ int main(int argc, char** argv) {
   uint32_t frameCtr = 0;
   int wheel = 0;
   static bool show_control_window = false;
+  bool show_audio_window = false;
   printf("%d\n", *(int *)snes->cart->ram);
 
   while(running) {
@@ -362,9 +374,7 @@ int main(int argc, char** argv) {
         
         if (ImGui::BeginMenu("Settings")) {
           ImGui::MenuItem("Controls", NULL, &show_control_window);
-          if (ImGui::MenuItem("Audio")) {
-            
-          }
+          ImGui::MenuItem("Audio", NULL, &show_audio_window);
           ImGui::EndMenu();
         }
 
@@ -372,6 +382,8 @@ int main(int argc, char** argv) {
     }
     if (show_control_window) 
       ShowControlsWindow(&show_control_window);
+    if (show_audio_window)
+      ShowAudioWindow(&show_audio_window);
     ImGui::End();
 
     // render the imgui 
