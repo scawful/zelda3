@@ -10,7 +10,7 @@ import os
 
 PATH=''
 
-ROM = util.LoadedRom()
+ROM = util.LoadedRom(sys.argv[1] if len(sys.argv) >= 2 else None)
 
 get_byte = ROM.get_byte
 get_word = ROM.get_word

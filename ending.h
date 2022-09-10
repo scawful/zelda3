@@ -1,10 +1,10 @@
 #pragma once
 
-struct IntroSpriteEnt {
+typedef struct IntroSpriteEnt {
   int8 x, y;
   uint8 charnum, flags;
   uint8 ext;
-};
+} IntroSpriteEnt;
 
 void Intro_SetupScreen();
 void Intro_LoadTextPointersAndPalettes();
@@ -14,6 +14,7 @@ void Credits_LoadScene_Overworld_LoadMap();
 void Credits_OperateScrollingAndTileMap();
 void Credits_LoadCoolBackground();
 void Credits_LoadScene_Dungeon();
+void Module18_GanonEmerges();
 void Module19_TriforceRoom();
 void Intro_InitializeBackgroundSettings();
 void Polyhedral_InitializeThread();

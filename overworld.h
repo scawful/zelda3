@@ -1,10 +1,6 @@
 #pragma once
 #include "zelda_rtl.h"
 #include "variables.h"
-#include "snes_regs.h"
-
-
-
 
 const uint8 *GetMap8toTileAttr();
 const uint16 *GetMap16toMap8Table();
@@ -96,7 +92,7 @@ void Overworld_LoadBirdTravelPos(int k);
 void FluteMenu_LoadSelectedScreenPalettes();
 void FindPartnerWhirlpoolExit();
 void Overworld_LoadAmbientOverlay(bool load_map_data);
-void Overworld_LoadAmbientOverlay();
+void Overworld_LoadAmbientOverlayFalse();
 void Overworld_LoadAndBuildScreen();
 void Module08_02_LoadAndAdvance();
 void Overworld_DrawQuadrantsAndOverlays();

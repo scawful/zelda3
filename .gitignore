@@ -1,6 +1,10 @@
 /.vs/
+/packages/
+/.vscode/
 .DS_Store
 *.dSYM
+/*.vcxproj.user
+*.aps
 /Debug
 /Release
 /x64
@@ -8,5 +12,14 @@
 /tables/dungeon/*.yaml
 /tables/img/
 /tables/old/
+/tables/zelda3.sfc
+/tables/zelda3.smc
 /saves/*.sav
+/saves/sram.dat
+/saves/sram.bak
+/zelda3
 __pycache__
+/*.o
+/*.exe
+/*.out
+/snes/*.o
